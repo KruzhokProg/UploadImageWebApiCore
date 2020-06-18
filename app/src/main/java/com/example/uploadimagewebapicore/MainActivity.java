@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
                     //uri = Uri.parse(filePath);
                     uri = data.getData();
                     originalFile = new File(filePath);
-                    // with changes 2
+                    // with changes 3
                 }
         }
     }
