@@ -89,10 +89,6 @@ public class MainActivity extends AppCompatActivity {
                     String filePath = data.getStringExtra(ImageSelectActivity.RESULT_FILE_PATH);
                     uri = Uri.parse(filePath);
                     originalFile = new File(filePath);
-                    //image = BitmapFactory.decodeFile(filePath);
-//                    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-//                    image.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-//                    imageBytes = stream.toByteArray();
                 }
                 break;
             case PICKFILE_REQUEST_CODE:
