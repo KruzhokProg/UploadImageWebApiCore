@@ -19,10 +19,12 @@ import retrofit2.Response;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
@@ -73,11 +75,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void btnUploadImage(View view) {
-        Intent intent = new Intent(this, ImageSelectActivity.class);
-        intent.putExtra(ImageSelectActivity.FLAG_COMPRESS, false);
-        intent.putExtra(ImageSelectActivity.FLAG_CAMERA, true);
-        intent.putExtra(ImageSelectActivity.FLAG_GALLERY, true);
-        startActivityForResult(intent, 1213);
+        Intent intent=new Intent(Intent.ACTION_PICK);
+        intent.setType("image/*");
+        String[] mimeTypes = {"image/jpeg", "image/png"};
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+        startActivityForResult(intent, REQUEST_CODE_IMAGE_INPUT);
     }
 
     @Override
@@ -86,20 +88,29 @@ public class MainActivity extends AppCompatActivity {
         switch (requestCode){
             case REQUEST_CODE_IMAGE_INPUT:
                 if(resultCode == Activity.RESULT_OK && data != null){
-                    String filePath = data.getStringExtra(ImageSelectActivity.RESULT_FILE_PATH);
-                    uri = Uri.parse(filePath);
-                    originalFile = new File(filePath);
+                    uri = data.getData();
+                    String[] filePathColumn = { MediaStore.Images.Media.DATA };
+                    setFile(filePathColumn);
                 }
                 break;
             case PICKFILE_REQUEST_CODE:
                 if(resultCode == Activity.RESULT_OK && data != null){
-                    String filePath = data.getData().getPath();
-                    Toast.makeText(this, filePath, Toast.LENGTH_SHORT).show();
-                    //uri = Uri.parse(filePath);
                     uri = data.getData();
-                    originalFile = new File(filePath);
+                    String src = uri.getPath();
+                    originalFile = new File(src);
+//                    String[] filePathColumn = {MediaStore.Files.FileColumns.DATA};
+//                    setFile(filePathColumn);
                 }
         }
+    }
+
+    public void setFile(String[] filePathColumn){
+        Cursor cursor = getContentResolver().query(uri, filePathColumn, null, null, null);
+        cursor.moveToFirst();
+        int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+        String imgDecodableString = cursor.getString(columnIndex);
+        cursor.close();
+        originalFile = new File(imgDecodableString);
     }
 
     public void btnSend_Click(View view) {
@@ -133,8 +144,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void img_btn_folder_Click(View view) {
-        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-        intent.setType("*/*");
-        startActivityForResult(intent, PICKFILE_REQUEST_CODE);
+        Intent chooseFile = new Intent(Intent.ACTION_GET_CONTENT);
+        chooseFile.setType("*/*");
+        startActivityForResult(chooseFile, PICKFILE_REQUEST_CODE);
     }
 }
