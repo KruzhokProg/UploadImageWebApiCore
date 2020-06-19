@@ -4,6 +4,7 @@ import Model.User;
 import adapter.UserAdapter;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.RecyclerView;
 import in.mayanknagwanshi.imagepicker.ImageSelectActivity;
 import okhttp3.MediaType;
@@ -20,20 +21,30 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.FileUtils;
+import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
-import org.apache.commons.io.FileUtils;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.URI;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     Uri uri;
     File originalFile;
     Bitmap image;
+    InputStream stream;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,28 +102,43 @@ public class MainActivity extends AppCompatActivity {
                 if(resultCode == Activity.RESULT_OK && data != null){
                     uri = data.getData();
                     String[] filePathColumn = { MediaStore.Images.Media.DATA };
-                    setFile(filePathColumn);
+                    Cursor cursor = getContentResolver().query(uri, filePathColumn, null, null, null);
+                    try {
+                        if( cursor != null &&  cursor.moveToFirst()) {
+                            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+                            String imgDecodableString = cursor.getString(columnIndex);
+                            originalFile = new File(imgDecodableString);
+                        }
+                    }catch (Exception e){
+                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }finally {
+                        cursor.close();
+                    }
                 }
                 break;
             case PICKFILE_REQUEST_CODE:
                 if(resultCode == Activity.RESULT_OK && data != null){
                     uri = data.getData();
-                    String src = uri.getPath();
-                    originalFile = new File(src);
-//                    String[] filePathColumn = {MediaStore.Files.FileColumns.DATA};
-//                    setFile(filePathColumn);
+                    Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+                    try {
+                        if (cursor != null && cursor.moveToFirst()) {
+                            int columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                            String fileName = cursor.getString(columnIndex);
+                            String dirPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
+                            String path = dirPath + "/" + fileName;
+                            originalFile = new File(path);
+                        }
+                    }catch (Exception e){
+                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
+                    finally {
+                        cursor.close();
+                    }
+
                 }
         }
     }
 
-    public void setFile(String[] filePathColumn){
-        Cursor cursor = getContentResolver().query(uri, filePathColumn, null, null, null);
-        cursor.moveToFirst();
-        int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-        String imgDecodableString = cursor.getString(columnIndex);
-        cursor.close();
-        originalFile = new File(imgDecodableString);
-    }
 
     public void btnSend_Click(View view) {
         RequestBody namePart = RequestBody.create(MultipartBody.FORM, etName.getText().toString());
@@ -144,8 +171,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void img_btn_folder_Click(View view) {
-        Intent chooseFile = new Intent(Intent.ACTION_GET_CONTENT);
-        chooseFile.setType("*/*");
-        startActivityForResult(chooseFile, PICKFILE_REQUEST_CODE);
+        Intent target = new Intent(Intent.ACTION_GET_CONTENT);
+        target.setType("*/*");
+        //target.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivityForResult(target, PICKFILE_REQUEST_CODE);
     }
+
 }
