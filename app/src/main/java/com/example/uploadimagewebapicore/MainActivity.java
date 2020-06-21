@@ -45,12 +45,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_IMAGE_INPUT = 1213;
     private static final int PICKFILE_REQUEST_CODE = 1415;
+    private static final int ACTIVITY_CHOOSE_FILE = 1516 ;
     UserAdapter adapter;
     ApiInterface apiService;
     List<User> users;
@@ -60,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
     File originalFile;
     Bitmap image;
     InputStream stream;
+    ArrayList<Uri> fileUris;
+    Boolean isMultiple;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -85,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
 
     public void btnUploadImage(View view) {
         Intent intent=new Intent(Intent.ACTION_PICK);
@@ -119,55 +124,108 @@ public class MainActivity extends AppCompatActivity {
             case PICKFILE_REQUEST_CODE:
                 if(resultCode == Activity.RESULT_OK && data != null){
                     uri = data.getData();
-                    Cursor cursor = getContentResolver().query(uri, null, null, null, null);
-                    try {
-                        if (cursor != null && cursor.moveToFirst()) {
-                            int columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                            String fileName = cursor.getString(columnIndex);
-                            String dirPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
-                            String path = dirPath + "/" + fileName;
-                            originalFile = new File(path);
-                        }
-                    }catch (Exception e){
-                        Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+                    setOriginalFile(uri);
+                    isMultiple = false;
+                }
+                break;
+            case ACTIVITY_CHOOSE_FILE:
+                if( data != null && resultCode == Activity.RESULT_OK){
+                    fileUris = new ArrayList<>();
+                    for(int i = 0; i < data.getClipData().getItemCount(); i++) {
+                        uri = data.getClipData().getItemAt(i).getUri();
+                        fileUris.add(uri);
+                        isMultiple = true;
                     }
-                    finally {
-                        cursor.close();
-                    }
-
                 }
         }
     }
 
+    public void setOriginalFile(Uri uri)
+    {
+        Cursor cursor = getContentResolver().query(uri, null, null, null, null);
+        try {
+            if (cursor != null && cursor.moveToFirst()) {
+                int columnIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                String fileName = cursor.getString(columnIndex);
+                String dirPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
+                String path = dirPath + "/" + fileName;
+                originalFile = new File(path);
+            }
+        }catch (Exception e){
+            Toast.makeText(this, e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+        finally {
+            cursor.close();
+        }
+    }
+
+    private RequestBody createPartFromString(String descriptionString) {
+        return RequestBody.create(MultipartBody.FORM, descriptionString);
+    }
+
+    private MultipartBody.Part prepareFilePart(String partName, Uri fileUri) {
+        setOriginalFile(fileUri);
+        // create RequestBody instance from file
+        RequestBody requestFile =
+                RequestBody.create(
+                        MediaType.parse(getContentResolver().getType(fileUri)),
+                        originalFile
+                );
+
+        // MultipartBody.Part is used to send also the actual file name
+        return MultipartBody.Part.createFormData(partName, originalFile.getName(), requestFile);
+    }
 
     public void btnSend_Click(View view) {
-        RequestBody namePart = RequestBody.create(MultipartBody.FORM, etName.getText().toString());
 
-        //RequestBody filePart = RequestBody.create( okhttp3.MediaType.parse("image/*"), originalFile);
-        RequestBody filePart=null;
-        try {
-            String uri_type = getApplicationContext().getContentResolver().getType(uri);
-            MediaType type = MediaType.parse(uri_type);
-            filePart = RequestBody.create(type, originalFile);
-        }catch (Exception e){
-            Log.d("ERROR", e.getMessage());
+        if(isMultiple){
+            List<MultipartBody.Part> parts = new ArrayList<>();
+            for (int i=0; i<fileUris.size(); i++){
+                parts.add(prepareFilePart("Images", fileUris.get(i)));
+            }
+
+            Call<ResponseBody> call = apiService.uploadMultipleFilesDynamic(createPartFromString(etName.getText().toString()), parts);
+            call.enqueue(new Callback<ResponseBody>() {
+                @Override
+                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                    Toast.makeText(MainActivity.this, "Данные успешно сохранены! code: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+
+                @Override
+                public void onFailure(Call<ResponseBody> call, Throwable t) {
+                    Toast.makeText(MainActivity.this, "fail: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
         }
+        else {
+            RequestBody namePart = RequestBody.create(MultipartBody.FORM, etName.getText().toString());
 
-        MultipartBody.Part file = MultipartBody.Part.createFormData("Image", originalFile.getName(), filePart);
-
-        Call<ResponseBody> call = apiService.saveUser(namePart, file);
-        call.enqueue(new Callback<ResponseBody>() {
-            @Override
-            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                Toast.makeText(MainActivity.this, "Данные успешно сохранены! code: " + response.code(), Toast.LENGTH_SHORT).show();
-                adapter.notifyItemInserted(users.size());
+            //RequestBody filePart = RequestBody.create( okhttp3.MediaType.parse("image/*"), originalFile);
+            RequestBody filePart = null;
+            try {
+                String uri_type = getApplicationContext().getContentResolver().getType(uri);
+                MediaType type = MediaType.parse(uri_type);
+                filePart = RequestBody.create(type, originalFile);
+            } catch (Exception e) {
+                Log.d("ERROR", e.getMessage());
             }
 
-            @Override
-            public void onFailure(Call<ResponseBody> call, Throwable t) {
-                Toast.makeText(MainActivity.this, "fail: "+t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
+            MultipartBody.Part file = MultipartBody.Part.createFormData("Image", originalFile.getName(), filePart);
+
+            Call<ResponseBody> call = apiService.saveUser(namePart, file);
+            call.enqueue(new Callback<ResponseBody>() {
+                @Override
+                public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                    Toast.makeText(MainActivity.this, "Данные успешно сохранены! code: " + response.code(), Toast.LENGTH_SHORT).show();
+                    adapter.notifyItemInserted(users.size());
+                }
+
+                @Override
+                public void onFailure(Call<ResponseBody> call, Throwable t) {
+                    Toast.makeText(MainActivity.this, "fail: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
     public void img_btn_folder_Click(View view) {
@@ -177,4 +235,13 @@ public class MainActivity extends AppCompatActivity {
         startActivityForResult(target, PICKFILE_REQUEST_CODE);
     }
 
+    public void img_btn_multiple_OnClick(View view) {
+        Intent chooseFile;
+        Intent intent;
+        chooseFile = new Intent(Intent.ACTION_GET_CONTENT);
+        chooseFile.setType("*/*");
+        chooseFile.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        intent = Intent.createChooser(chooseFile, "Choose a file");
+        startActivityForResult(intent, ACTIVITY_CHOOSE_FILE);
+    }
 }

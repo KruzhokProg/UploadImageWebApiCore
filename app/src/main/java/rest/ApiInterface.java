@@ -23,5 +23,8 @@ public interface ApiInterface {
     Call<ResponseBody> saveUser(@Part("Name") RequestBody name, @Part MultipartBody.Part image);
     @GET("user")
     Call<List<User>> getUsers();
+    @Multipart
+    @POST("userlist")
+    Call<ResponseBody> uploadMultipleFilesDynamic(@Part("Name") RequestBody description, @Part List<MultipartBody.Part> parts);
 }
 

@@ -49,24 +49,40 @@
         android:id="@+id/btnSend"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="120dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginEnd="70dp"
+        android:layout_marginStart="60dp"
+        android:layout_marginTop="36dp"
         android:onClick="btnSend_Click"
-        android:text="Button"
+        android:text="Сохранить"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/img_btn_multiple"
         app:layout_constraintTop_toBottomOf="@+id/imgBtnUploadImage" />
 
     <ImageButton
         android:id="@+id/img_btn_file"
         android:layout_width="50dp"
         android:layout_height="50dp"
+        android:layout_marginStart="24dp"
         android:layout_marginTop="35dp"
+        android:background="@android:color/transparent"
+        android:onClick="img_btn_folder_Click"
+        android:scaleType="fitCenter"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imgBtnUploadImage"
+        app:srcCompat="@drawable/ic_folder" />
+
+    <ImageButton
+        android:id="@+id/img_btn_multiple"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginStart="16dp"
         android:background="@android:color/transparent"
         android:scaleType="fitCenter"
         app:layout_constraintEnd_toStartOf="@+id/btnSend"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/imgBtnUploadImage"
-        app:srcCompat="@drawable/ic_folder"
-        android:onClick="img_btn_folder_Click"/>
+        app:layout_constraintHorizontal_bias="0.203"
+        app:layout_constraintStart_toEndOf="@+id/img_btn_file"
+        app:layout_constraintTop_toTopOf="@+id/img_btn_file"
+        app:srcCompat="@drawable/ic_files"
+        android:onClick="img_btn_multiple_OnClick"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
